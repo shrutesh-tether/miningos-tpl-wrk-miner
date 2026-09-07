@@ -135,6 +135,142 @@ libAlerts.specs.miner_default = {
       const threshold = configuredParams.minHashRateMhs
       return snap.stats.hashrate_mhs.avg < threshold
     }
+  },
+  'custom.wrong_miner_pool.warning': {
+    valid: (ctx, snap) => {
+      const configuredParams = ctx.configuredParams['custom.wrong_miner_pool.warning']
+      const enabled = configuredParams?.enabled
+
+      return enabled && isValidPoolConfigSnap(ctx, snap)
+    },
+    probe: (ctx, snap) => {
+      const configPools = ctx.thingConf.pools
+      const minerPools = snap.config.pool_config
+      return !areMinerPoolsUrlsCorrectlySetup(minerPools, configPools)
+    }
+  },
+  'custom.wrong_miner_pool.critical': {
+    valid: (ctx, snap) => {
+      const configuredParams = ctx.configuredParams['custom.wrong_miner_pool.critical']
+      const enabled = configuredParams?.enabled
+
+      return enabled && isValidPoolConfigSnap(ctx, snap)
+    },
+    probe: (ctx, snap) => {
+      const configPools = ctx.thingConf.pools
+      const minerPools = snap.config.pool_config
+      return !areMinerPoolsUrlsCorrectlySetup(minerPools, configPools)
+    }
+  },
+  'custom.wrong_miner_subaccount.warning': {
+    valid: (ctx, snap) => {
+      const configuredParams = ctx.configuredParams['custom.wrong_miner_subaccount.warning']
+      const enabled = configuredParams?.enabled
+
+      return enabled && isValidPoolConfigSnap(ctx, snap)
+    },
+    probe: (ctx, snap) => {
+      const configPools = ctx.thingConf.pools
+      const minerPools = snap.config.pool_config
+      if (configPools.length > 0 && minerPools.length > 0) {
+        return !isConfigWorkerNameInPoolUsername(minerPools, configPools)
+      }
+      return false
+    }
+  },
+  'custom.wrong_miner_subaccount.critical': {
+    valid: (ctx, snap) => {
+      const configuredParams = ctx.configuredParams['custom.wrong_miner_subaccount.critical']
+      const enabled = configuredParams?.enabled
+
+      return enabled && isValidPoolConfigSnap(ctx, snap)
+    },
+    probe: (ctx, snap) => {
+      const configPools = ctx.thingConf.pools
+      const minerPools = snap.config.pool_config
+      if (configPools.length > 0 && minerPools.length > 0) {
+        return !isConfigWorkerNameInPoolUsername(minerPools, configPools)
+      }
+      return false
+    }
+  },
+  'custom.wrong_worker_name.warning': {
+    valid: (ctx, snap) => {
+      const configuredParams = ctx.configuredParams['custom.wrong_worker_name.warning']
+      const enabled = configuredParams?.enabled
+
+      return enabled && isValidPoolConfigSnap(ctx, snap)
+    },
+    probe: (ctx, snap) => {
+      const configPools = ctx.thingConf.pools
+      const minerPools = snap.config.pool_config
+      const id = ctx.id
+      const ip = snap.config.network_config.ip_address
+      if (configPools.length > 0 && minerPools.length > 0) {
+        return (
+          !isCorrectPoolUsername(id, minerPools, configPools) &&
+          !isIpPoolUsername(ip, minerPools, configPools)
+        )
+      }
+      return false
+    }
+  },
+  'custom.wrong_worker_name.critical': {
+    valid: (ctx, snap) => {
+      const configuredParams = ctx.configuredParams['custom.wrong_worker_name.critical']
+      const enabled = configuredParams?.enabled
+
+      return enabled && isValidPoolConfigSnap(ctx, snap)
+    },
+    probe: (ctx, snap) => {
+      const configPools = ctx.thingConf.pools
+      const minerPools = snap.config.pool_config
+      const id = ctx.id
+      const ip = snap.config.network_config.ip_address
+      if (configPools.length > 0 && minerPools.length > 0) {
+        return (
+          !isCorrectPoolUsername(id, minerPools, configPools) &&
+          !isIpPoolUsername(ip, minerPools, configPools)
+        )
+      }
+      return false
+    }
+  },
+  'custom.ip_worker_name.warning': {
+    valid: (ctx, snap) => {
+      const configuredParams = ctx.configuredParams['custom.ip_worker_name.warning']
+      const enabled = configuredParams?.enabled
+
+      return enabled && isValidPoolConfigSnap(ctx, snap)
+    },
+    probe: (ctx, snap) => {
+      const configPools = ctx.thingConf.pools
+      const minerPools = snap.config.pool_config
+      const ip = snap.config.network_config.ip_address
+
+      if (configPools.length > 0 && minerPools.length > 0) {
+        return isIpPoolUsername(ip, minerPools, configPools)
+      }
+      return false
+    }
+  },
+  'custom.ip_worker_name.critical': {
+    valid: (ctx, snap) => {
+      const configuredParams = ctx.configuredParams['custom.ip_worker_name.critical']
+      const enabled = configuredParams?.enabled
+
+      return enabled && isValidPoolConfigSnap(ctx, snap)
+    },
+    probe: (ctx, snap) => {
+      const configPools = ctx.thingConf.pools
+      const minerPools = snap.config.pool_config
+      const ip = snap.config.network_config.ip_address
+
+      if (configPools.length > 0 && minerPools.length > 0) {
+        return isIpPoolUsername(ip, minerPools, configPools)
+      }
+      return false
+    }
   }
 }
 
