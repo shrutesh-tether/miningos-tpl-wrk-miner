@@ -197,7 +197,15 @@ test('alert specs have required properties', (t) => {
     'wrong_worker_name',
     'ip_worker_name',
     'custom.low_hashrate.warning',
-    'custom.low_hashrate.critical'
+    'custom.low_hashrate.critical',
+    'custom.wrong_miner_pool.warning',
+    'custom.wrong_miner_pool.critical',
+    'custom.wrong_miner_subaccount.warning',
+    'custom.wrong_miner_subaccount.critical',
+    'custom.wrong_worker_name.warning',
+    'custom.wrong_worker_name.critical',
+    'custom.ip_worker_name.warning',
+    'custom.ip_worker_name.critical'
   ]
 
   for (const alertType of alertTypes) {
@@ -291,6 +299,168 @@ for (const key of ['custom.low_hashrate.warning', 'custom.low_hashrate.critical'
     t.ok(alertSpec.probe(ctx, snap), 'Should trigger alert when hashrate is below threshold')
   })
 }
+
+for (const key of [
+  'custom.wrong_miner_pool.warning',
+  'custom.wrong_miner_pool.critical',
+  'custom.wrong_miner_subaccount.warning',
+  'custom.wrong_miner_subaccount.critical',
+  'custom.wrong_worker_name.warning',
+  'custom.wrong_worker_name.critical',
+  'custom.ip_worker_name.warning',
+  'custom.ip_worker_name.critical'
+]) {
+  test(`${key} alert - valid is false when not enabled`, (t) => {
+    const ctx = createMockContext({}, { [key]: { enabled: false } })
+    const snap = createMockSnap()
+
+    const alertSpec = libAlerts.specs.miner_default[key]
+    t.not(alertSpec.valid(ctx, snap), 'Should not be valid when disabled')
+  })
+
+  test(`${key} alert - valid is false when configuredParams is missing`, (t) => {
+    const ctx = createMockContext()
+    const snap = createMockSnap()
+
+    const alertSpec = libAlerts.specs.miner_default[key]
+    t.not(alertSpec.valid(ctx, snap), 'Should not be valid when configuredParams is missing entirely')
+  })
+
+  test(`${key} alert - valid is true when enabled and snap is a valid pool config snap`, (t) => {
+    const ctx = createMockContext({}, { [key]: { enabled: true } })
+    const snap = createMockSnap()
+
+    const alertSpec = libAlerts.specs.miner_default[key]
+    t.ok(alertSpec.valid(ctx, snap), 'Should be valid when enabled and pool config snap is valid')
+  })
+
+  test(`${key} alert - valid is false when enabled but miner is offline`, (t) => {
+    const ctx = createMockContext({}, { [key]: { enabled: true } })
+    const snap = createMockSnap({}, { status: 'offline' })
+
+    const alertSpec = libAlerts.specs.miner_default[key]
+    t.not(alertSpec.valid(ctx, snap), 'Should not be valid when miner is offline, even if enabled')
+  })
+
+  test(`${key} alert - valid is false when there are no pools configured`, (t) => {
+    const ctx = createMockContext({ pools: [] }, { [key]: { enabled: true } })
+    const snap = createMockSnap()
+
+    const alertSpec = libAlerts.specs.miner_default[key]
+    t.not(alertSpec.valid(ctx, snap), 'Should not be valid when context has no pools')
+  })
+}
+
+test('custom.wrong_miner_pool alert - probe does not trigger for correctly configured pools', (t) => {
+  const ctx = createMockContext()
+  const snap = createMockSnap()
+
+  t.not(libAlerts.specs.miner_default['custom.wrong_miner_pool.warning'].probe(ctx, snap))
+  t.not(libAlerts.specs.miner_default['custom.wrong_miner_pool.critical'].probe(ctx, snap))
+})
+
+test('custom.wrong_miner_pool alert - probe triggers for incorrectly configured pools', (t) => {
+  const ctx = createMockContext()
+  const snap = createMockSnap({ pool_config: [] })
+
+  t.ok(libAlerts.specs.miner_default['custom.wrong_miner_pool.warning'].probe(ctx, snap))
+  t.ok(libAlerts.specs.miner_default['custom.wrong_miner_pool.critical'].probe(ctx, snap))
+})
+
+test('custom.wrong_miner_subaccount alert - probe does not trigger for correct worker names', (t) => {
+  const ctx = createMockContext()
+  const snap = createMockSnap()
+
+  t.not(libAlerts.specs.miner_default['custom.wrong_miner_subaccount.warning'].probe(ctx, snap))
+  t.not(libAlerts.specs.miner_default['custom.wrong_miner_subaccount.critical'].probe(ctx, snap))
+})
+
+test('custom.wrong_miner_subaccount alert - probe triggers for incorrect worker names', (t) => {
+  const ctx = createMockContext()
+  const snap = createMockSnap({
+    pool_config: [
+      { url: 'stratum+tcp://pool1.example.com:4444', username: 'wrong-worker.test-miner-123' },
+      { url: 'stratum+tcp://pool2.example.com:4444', username: 'worker2.test-miner-123' }
+    ]
+  })
+
+  t.ok(libAlerts.specs.miner_default['custom.wrong_miner_subaccount.warning'].probe(ctx, snap))
+  t.ok(libAlerts.specs.miner_default['custom.wrong_miner_subaccount.critical'].probe(ctx, snap))
+})
+
+test('custom.wrong_miner_subaccount alert - probe does not trigger when pool_config is empty', (t) => {
+  const ctx = createMockContext()
+  const snap = createMockSnap({ pool_config: [] })
+
+  t.not(libAlerts.specs.miner_default['custom.wrong_miner_subaccount.warning'].probe(ctx, snap))
+  t.not(libAlerts.specs.miner_default['custom.wrong_miner_subaccount.critical'].probe(ctx, snap))
+})
+
+test('custom.wrong_worker_name alert - probe does not trigger when ID is in username', (t) => {
+  const ctx = createMockContext()
+  const snap = createMockSnap()
+
+  t.not(libAlerts.specs.miner_default['custom.wrong_worker_name.warning'].probe(ctx, snap))
+  t.not(libAlerts.specs.miner_default['custom.wrong_worker_name.critical'].probe(ctx, snap))
+})
+
+test('custom.wrong_worker_name alert - probe does not trigger when IP is in username', (t) => {
+  const ctx = createMockContext()
+  const snap = createMockSnap({
+    pool_config: [
+      { url: 'stratum+tcp://pool1.example.com:4444', username: 'worker1.192x168x1x100' },
+      { url: 'stratum+tcp://pool2.example.com:4444', username: 'worker2.192x168x1x100' }
+    ]
+  })
+
+  t.not(libAlerts.specs.miner_default['custom.wrong_worker_name.warning'].probe(ctx, snap))
+  t.not(libAlerts.specs.miner_default['custom.wrong_worker_name.critical'].probe(ctx, snap))
+})
+
+test('custom.wrong_worker_name alert - probe triggers when neither ID nor IP is in username', (t) => {
+  const ctx = createMockContext()
+  const snap = createMockSnap({
+    pool_config: [
+      { url: 'stratum+tcp://pool1.example.com:4444', username: 'worker1.unknown' },
+      { url: 'stratum+tcp://pool2.example.com:4444', username: 'worker2.unknown' }
+    ]
+  })
+
+  t.ok(libAlerts.specs.miner_default['custom.wrong_worker_name.warning'].probe(ctx, snap))
+  t.ok(libAlerts.specs.miner_default['custom.wrong_worker_name.critical'].probe(ctx, snap))
+})
+
+test('custom.ip_worker_name alert - probe does not trigger when ID is in username', (t) => {
+  const ctx = createMockContext()
+  const snap = createMockSnap()
+
+  t.not(libAlerts.specs.miner_default['custom.ip_worker_name.warning'].probe(ctx, snap))
+  t.not(libAlerts.specs.miner_default['custom.ip_worker_name.critical'].probe(ctx, snap))
+})
+
+test('custom.ip_worker_name alert - probe triggers for IP-based usernames', (t) => {
+  const ctx = createMockContext()
+  const ip = '10.20.30.40'
+  const formatted = ip.replace(/\./g, 'x')
+  const snap = createMockSnap({
+    network_config: { ip_address: ip },
+    pool_config: [
+      { url: 'stratum+tcp://pool1.example.com:4444', username: `worker1.${formatted}` },
+      { url: 'stratum+tcp://pool2.example.com:4444', username: `worker2.${formatted}` }
+    ]
+  })
+
+  t.ok(libAlerts.specs.miner_default['custom.ip_worker_name.warning'].probe(ctx, snap))
+  t.ok(libAlerts.specs.miner_default['custom.ip_worker_name.critical'].probe(ctx, snap))
+})
+
+test('custom.ip_worker_name alert - probe does not trigger when pool_config is empty', (t) => {
+  const ctx = createMockContext()
+  const snap = createMockSnap({ pool_config: [] })
+
+  t.not(libAlerts.specs.miner_default['custom.ip_worker_name.warning'].probe(ctx, snap))
+  t.not(libAlerts.specs.miner_default['custom.ip_worker_name.critical'].probe(ctx, snap))
+})
 
 test('edge cases - invalid snap structure', (t) => {
   const ctx = createMockContext()
